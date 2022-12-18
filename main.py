@@ -10,7 +10,7 @@ sense = SenseHat()
 # Uncomment one of the following modes
 
 # Tries to connect the first registered preferredIn to the first registered preferredOut until successful
-mode = 'simple'
+#mode = 'simple'
 
 # Tries to connect the first registered preferredIn to the first registered preferredOut each time a button is pressed
 # mode = 'press'
@@ -19,7 +19,7 @@ mode = 'simple'
 # mode = 'frenzy'
 
 # Use a senseHat to manually control midi links (starts in simple mode until button is pressed)
-#mode = 'senseHat'
+mode = 'senseHat'
 #########################################################################################################################
 
 
@@ -39,7 +39,7 @@ def getInputs():
 def getOutputs():
     outputString = subprocess.check_output("aconnect -o", shell=True, text=True)
     array = convertDeviceStringToFilteredArray(outputString)
-    print(f"All Inputs: {array}")
+    print(f"All Outputs: {array}")
     return array
 
 def convertDeviceStringToFilteredArray(string):
@@ -49,19 +49,20 @@ def convertDeviceStringToFilteredArray(string):
         for y in deviceArray[:]:
             if x in y:
                 deviceArray.remove(y)
-    return array
+    return deviceArray
 
 def log(message, color=[255,255,255]):
     print(message)
-    if mode == senseHat:
+    if mode == 'senseHat':
         sense.show_message(message, text_colour=color, scroll_speed=0.02)
 
 
 def link(i, o):
     # Link an input and output, log to terminal and sensehat
-    os.system(f"aconnect '{i}' '{o}'")
-    message = f"{i} connected to {o}"
-    log(message, [0, 255, 255])
+    if i != '' and o != '':
+        os.system(f"aconnect '{i}' '{o}'")
+        message = f"{i} connected to {o}"
+        log(message, [0, 255, 255])
 
 def linkIOPreferred():
     global preferredIn
@@ -87,7 +88,8 @@ def linkIOPreferred():
 if mode == 'simple':
     connected = False
     while connected == False:
-        connected = linkIOPreferred
+        print("1")
+        connected = linkIOPreferred()
         time.sleep(1)
 
 if mode == 'frenzy':
@@ -115,9 +117,15 @@ if mode=='senseHat':
     selecting = 'sleep'
     i = ''
     o = ''
+    inputs = getInputs()
+    outputs = getOutputs()
 
-    def clamp(value, min_value=0, max_value=len(allInputs)-1):
-        return min(max_value, max(min_value, value))
+    def clamp(value):
+        minValue = 0
+        maxValue = len(inputs)-1
+        if selecting == 'output':
+            maxValue = len(outputs)-1
+        return min(maxValue, max(minValue, value))
 
     def pushed_up(event):
         global listPosition
@@ -140,10 +148,10 @@ if mode=='senseHat':
             sense.clear()
             print(selecting)
             if selecting == 'input':
-                i = allInputs[listPosition]
+                i = inputs[listPosition]
                 selecting = 'output'
             elif selecting == 'output':
-                o = allOutputs[listPosition]
+                o = outputs[listPosition]
                 selecting = 'sleep'
             elif selecting == 'sleep':
                 selecting = 'input'
@@ -154,21 +162,15 @@ if mode=='senseHat':
     sense.stick.direction_down = pushed_down
     sense.stick.direction_middle = pushed_middle
 
-    def loop():
-        global i
-        global o
-        global listPosition
-        global selecting
-        inputs = getInputs()
-        outputs = getOutputs()
-        while True:
-            while selecting == 0:
-                sense.show_message(allInputs[listPosition], scroll_speed=0.02, text_colour=[0,255,0])
-            while selecting == 1:
-                sense.show_message(allOutputs[listPosition], scroll_speed=0.02, text_colour=[0,0,255])
-            link()
-            while selecting == 2:
-                # What are you waiting for?
-                # I don't know... something awesome I guess
-                pass
-    loop()
+
+    while True:
+        while selecting == 'input':
+            sense.show_message(inputs[listPosition], scroll_speed=0.02, text_colour=[0,255,0])
+        while selecting == 'output':
+            sense.show_message(outputs[listPosition], scroll_speed=0.02, text_colour=[0,0,255])
+        link(i, o)
+        while selecting == 'sleep':
+            # What are you waiting for?
+            # I don't know... something awesome I guess
+            pass
+
