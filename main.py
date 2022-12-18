@@ -10,16 +10,16 @@ sense = SenseHat()
 # Uncomment one of the following modes
 
 # Tries to connect the first registered preferredIn to the first registered preferredOut until successful
-# mode = 'simple'
+mode = 'simple'
 
 # Tries to connect the first registered preferredIn to the first registered preferredOut each time a button is pressed
 # mode = 'press'
 
-# Connect all inputs to all outputs every second (probably not a good idea)
+# Connect all inputs to all outputs every five seconds (probably not a good idea)
 # mode = 'frenzy'
 
 # Use a senseHat to manually control midi links (starts in simple mode until button is pressed)
-mode = 'senseHat'
+#mode = 'senseHat'
 #########################################################################################################################
 
 
@@ -28,98 +28,93 @@ mode = 'senseHat'
 preferredIn = ['Arturia MiniLab mkII']
 preferredOut = ['UNO Synth']
 
-# Declare the global input and output to be used in any mode
-i = ''
-o = ''
+deviceNamesToIgnore = ['MIDI', 'Midi', 'System', 'Timer', 'Announce', 'Through']
 
-# Declare the global available inputs and outputs to be used in any mode
-allInputs = []
-allOutputs = []
-
-def readConnections():
-    # Get the system output for device names
+def getInputs():
     inputString = subprocess.check_output("aconnect -i", shell=True, text=True)
+    array = convertDeviceStringToFilteredArray(inputString)
+    print(f"All Inputs: {array}")
+    return array
+
+def getOutputs():
     outputString = subprocess.check_output("aconnect -o", shell=True, text=True)
+    array = convertDeviceStringToFilteredArray(outputString)
+    print(f"All Inputs: {array}")
+    return array
 
-    # Some regex for getting an array of device names from the full string
-    allInputs =  re.findall(r"'([^']*)'", inputString)
-    allOutputs = re.findall(r"'([^']*)'", outputString)
-
-    # Ignore some of the default system device names
-    deviceNamesToIgnore = ['MIDI', 'Midi', 'System', 'Timer', 'Announce', 'Through']
+def convertDeviceStringToFilteredArray(string):
+    global deviceNamesToIgnore
+    deviceArray =  re.findall(r"'([^']*)'", string)
     for x in deviceNamesToIgnore:
-        for y in allInputs[:]:
+        for y in deviceArray[:]:
             if x in y:
-                allInputs.remove(y)
-        for y in allOutputs[:]:
-            if x in y:
-                allOutputs.remove(y)
+                deviceArray.remove(y)
+    return array
 
-    print(f"Available Inputs: {allInputs}")
-    print(f"Available Outputs: {allOutputs}")
+def log(message, color=[255,255,255]):
+    print(message)
+    if mode == senseHat:
+        sense.show_message(message, text_colour=color, scroll_speed=0.02)
 
-def link():
-    global i
-    global o
+
+def link(i, o):
+    # Link an input and output, log to terminal and sensehat
     os.system(f"aconnect '{i}' '{o}'")
-    print(f"{i} connected to {o}")
-    sense.show_message(f"{i} connected to {o}", text_colour=[0,255,255], scroll_speed=0.02)
+    message = f"{i} connected to {o}"
+    log(message, [0, 255, 255])
 
-def setIOToPreferred():
-    global i
-    global o
-    global allInputs
-    global allOutputs
+def linkIOPreferred():
+    global preferredIn
+    global preferredOut
+    i = ''
+    o = ''
+    inputs = getInputs()
+    outputs = getOutputs()
     for x in preferredIn:
-            if x in allInputs:
-                i=x
-                break
-        for x in preferredOut:
-            if x in allOutputs:
-                o=x
-                break
+        if x in inputs:
+            i=x
+            break
+    for x in preferredOut:
+        if x in outputs:
+            o=x
+            break
+    if i != '' and o != '':
+        link(i, o)
+        return True
+    else:
+        return False
 
-if mode == 'simple'
-    readConnections()
+if mode == 'simple':
     connected = False
     while connected == False:
-        #os.system("aconnect -x")
-        global i
-        global o
-        
-        if len(allInputs) == 0:
-            print('No Inputs Detected')
-            sense.show_message('No Inputs Detected', scroll_speed=0.02)
-            return
-        if len(allOutputs) == 0:
-            print('No Outputs Detected')
-            sense.show_message('No Outputs Detected', scroll_speed=0.02)
-            return
-        
-        setIOToPreferred()
-        
-        if i == '' or o == '':
-            print("NICE TRY LOSER")
-        else:
-            link()
-            connected = True
+        connected = linkIOPreferred
+        time.sleep(1)
+
+if mode == 'frenzy':
+    while True:
+        inputs = getInputs()
+        outputs = getOutputs()
+        for x in inputs:
+            for y in outputs:
+                link(x, y)
+        sleep(5)
 
 
 if mode=='senseHat':
-    readConnections()
-
-    setIOToPreferred()
-
-    # if preferred connections exist, link them, but still wake up when button pressed
-    if i != '' and o != '':
-        link()
+    #########################################################################################################################
+    inputColor = [0, 255, 0]
+    outputColor = [0, 0, 255]
+    confirmColor = [0, 255, 255]
+    #########################################################################################################################
     
+    linkIOPreferred()
+
     # position in device arrays to display on the senseHat
     listPosition = 0
     # 0 for selecting input, 1 for selecting output, 2 for sleep
     selecting = 'sleep'
-    global i
-    global o
+    i = ''
+    o = ''
 
     def clamp(value, min_value=0, max_value=len(allInputs)-1):
         return min(max_value, max(min_value, value))
@@ -164,6 +159,8 @@ if mode=='senseHat':
         global o
         global listPosition
         global selecting
+        inputs = getInputs()
+        outputs = getOutputs()
         while True:
             while selecting == 0:
                 sense.show_message(allInputs[listPosition], scroll_speed=0.02, text_colour=[0,255,0])
