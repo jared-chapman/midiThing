@@ -3,7 +3,7 @@
 ## Setup
 1. Connect any midi devices you might want to use to a computer
 2. Run `aconnect -l` and note the device names (or get their exact midi device name somewhere else I guess)
-3. Edit the `preferredInputs` and `preferredOutputs` arrays to include your devices
+3. Edit the `preferredIn` and `preferredOut` arrays to include your devices
 4. Do something to run `main.py` on startup (crontab, etc.) so we can throw away all monitors, keyboards, and mice
 
 ### Simple mode
