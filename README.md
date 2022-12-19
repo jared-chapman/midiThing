@@ -10,7 +10,7 @@
 Simple mode will try to connect the first available preferred input to the first available preferred output, and will keep trying until it connects. 
 If a device is unplugged after it is connected it will no reconnect, so if you have a breadboard and some wire you might enjoy...
 
-### Button mode
+### Button mode (coming soon)
 Run simple mode every time a button is pressed
 
 ### Frenzy mode
